@@ -1,0 +1,25 @@
+FROM docker.io/library/debian:trixie-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git jq python3 ruby shellcheck nodejs npm \
+    xz-utils perl libdigest-sha-perl gcc libc6-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install --global prettier@3.6.2 && npm cache clean --force
+
+ARG ACTIONLINT_VERSION=1.7.12
+RUN set -eu; \
+    case "$(uname -m)" in aarch64) arch=arm64 ;; x86_64) arch=amd64 ;; esac; \
+    archive="actionlint_${ACTIONLINT_VERSION}_linux_${arch}.tar.gz"; \
+    base="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"; \
+    cd /tmp; \
+    curl -fL --retry 3 "$base/$archive" -o "$archive"; \
+    curl -fL --retry 3 "$base/actionlint_${ACTIONLINT_VERSION}_checksums.txt" -o checksums.txt; \
+    sha256sum --check --ignore-missing checksums.txt; \
+    tar -xzf "$archive" -C /usr/local/bin actionlint; \
+    rm "$archive" checksums.txt
+
+WORKDIR /work
+# The host checkout is mounted read-only at /source. Work on a private copy;
+# compilers, dependencies, caches, and test repositories stay in the container.
+CMD ["bash", "-lc", "cp -a /source/. /work/ && bash .github/scripts/quickterm/check-container.sh"]
