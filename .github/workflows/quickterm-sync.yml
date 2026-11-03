@@ -17,16 +17,22 @@ jobs:
     if: github.repository == 'jonigkeit/ghostty'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: write
-    outputs:
-      changed: ${{ steps.sync.outputs.changed }}
-      sha: ${{ steps.sync.outputs.sha }}
     steps:
+      - name: Check sync credential
+        env:
+          SYNC_KEY: ${{ secrets.QUICKTERM_SYNC_SSH_KEY }}
+        run: |
+          if [[ -z "$SYNC_KEY" ]]; then
+            echo 'Set QUICKTERM_SYNC_SSH_KEY to the repository write deploy key; see QUICKTERM.md.' >&2
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: feat/quickterm-with-tab
           fetch-depth: 0
+          # Upstream merges can change workflow files. GITHUB_TOKEN cannot
+          # write those files; use a deploy key scoped to this fork instead.
+          ssh-key: ${{ secrets.QUICKTERM_SYNC_SSH_KEY }}
       - name: Configure upstreams and commit identity
         run: |
           git remote add ghostty https://github.com/ghostty-org/ghostty.git
@@ -37,13 +43,4 @@ jobs:
         id: sync
         run: bash .github/scripts/quickterm/sync.sh
 
-  # A GITHUB_TOKEN push does not trigger a push workflow. Explicitly call the
-  # reusable release workflow so daily updates also produce a new release.
-  release:
-    needs: sync
-    if: needs.sync.outputs.changed == 'true'
-    permissions:
-      contents: write
-    uses: ./.github/workflows/quickterm-release.yml
-    with:
-      source_sha: ${{ needs.sync.outputs.sha }}
+      # Deploy-key pushes trigger the release workflow's normal push event.

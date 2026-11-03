@@ -7,12 +7,6 @@ on:
       - "Casks/**"
       - "QUICKTERM.md"
   workflow_dispatch:
-  workflow_call:
-    inputs:
-      source_sha:
-        description: Exact integration commit to build
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -24,7 +18,8 @@ concurrency:
 jobs:
   build:
     if: github.repository == 'jonigkeit/ghostty' && github.ref == 'refs/heads/feat/quickterm-with-tab'
-    runs-on: macos-26
+    # Match upstream's Xcode 27 toolchain on a disposable hosted Mac.
+    runs-on: xcode-27
     timeout-minutes: 90
     outputs:
       sha: ${{ steps.version.outputs.sha }}
@@ -32,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.source_sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Record immutable build identity

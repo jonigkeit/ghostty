@@ -48,10 +48,10 @@ brew install --cask ghostty
 
 - **Release Quick Terminal** (`quickterm-release.yml`) builds pushes to
   `feat/quickterm-with-tab`, or can be run manually on that branch. Cask-only
-  commits do not cause another build. A reusable entry point accepts the exact
-  commit produced by the sync workflow.
+  commits do not cause another build. The workflow checks out the exact commit
+  that triggered the push.
 - The build uses the Zig version in `build.zig.zon`, verified against Zig's
-  download manifest, and the macOS 26 GitHub runner's Xcode. It compiles both
+  download manifest, and GitHub's `xcode-27` macOS runner. It compiles both
   Apple Silicon and Intel, uses `ReleaseLocal`, verifies code signing and both
   architectures, and runs a CLI smoke check before uploading.
 - Each successful build produces an immutable `quickterm-YYYYMMDDHHMMSS`
@@ -61,8 +61,10 @@ brew install --cask ghostty
   **05:23 UTC** and can be run manually. It fetches both upstream branches,
   skips commits already integrated, and merges new commits with `--no-ff`.
   Only after both merges succeed does it push the integration branch.
-- The sync explicitly calls the release workflow after a change: pushes made
-  with `GITHUB_TOKEN` do not trigger other push workflows.
+- Sync pushes use a write deploy key scoped to this fork. Unlike `GITHUB_TOKEN`,
+  this can integrate upstream changes to workflow files and triggers the normal
+  release push workflow. The cask update uses `GITHUB_TOKEN` and does not trigger
+  another build.
 - Conflicts, missing upstream refs, and concurrent pushes fail the run. Nothing
   is force-pushed, and no issue or PR is opened. Resolve a conflict locally on
   the integration branch and push; that push starts a release. If an upstream
@@ -80,12 +82,19 @@ Actions. This also makes Homebrew clone the branch containing `Casks/`.
 Keep `main` available as the upstream baseline.
 
 If you keep `main` as the default branch, the daily schedule will not run until
-the sync workflow is installed on that branch. The release workflow must also
-be available there for the reusable call. The tap instructions above assume
-that the feature branch is the default branch.
+the sync workflow is installed on that branch. The tap instructions above
+assume that the feature branch is the default branch.
 
-The repository's Actions token needs write access to contents, and branch
-rules must allow its integration and cask commits. No other secrets are used.
+The release workflow's Actions token needs write access to contents. The sync
+workflow needs a dedicated write deploy key on `jonigkeit/ghostty`, with its
+private key stored as the repository Actions secret `QUICKTERM_SYNC_SSH_KEY`.
+Generate the key inside a temporary Podman container, register only its public
+key under **Settings → Deploy keys → Allow write access**, and pipe the private
+key into `gh secret set QUICKTERM_SYNC_SSH_KEY --repo jonigkeit/ghostty`. Remove
+the key-generation container afterwards; do not save the private key on the
+host or reuse a personal SSH key. Branch rules must allow integration and cask
+commits. The ordinary Actions token cannot merge upstream workflow-file changes.
+
 GitHub can delay scheduled jobs, and disables schedules in public repositories
 after 60 days without repository activity; re-enable the workflow if needed.
 

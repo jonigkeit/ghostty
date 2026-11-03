@@ -4,7 +4,7 @@ set -euo pipefail
 python3 .github/scripts/quickterm/test_sync.py
 shellcheck .github/scripts/quickterm/*.sh
 actionlint .github/workflows/quickterm-release.yml .github/workflows/quickterm-sync.yml
-prettier --check .github/workflows/quickterm-release.yml .github/workflows/quickterm-sync.yml QUICKTERM.md
+prettier --check .github/actionlint.yaml .github/workflows/quickterm-release.yml .github/workflows/quickterm-sync.yml QUICKTERM.md
 git diff --check
 
 # Validate generated Ruby without installing or changing a host Homebrew tap.
