@@ -23,7 +23,7 @@ plist="$app/Contents/Info.plist"
 codesign --force --sign - --options runtime \
   --entitlements macos/GhosttyReleaseLocal.entitlements "$app"
 codesign --verify --deep --strict "$app"
-lipo -verify_arch arm64 x86_64 "$app/Contents/MacOS/ghostty"
+lipo "$app/Contents/MacOS/ghostty" -verify_arch arm64 x86_64
 "$app/Contents/MacOS/ghostty" +version
 mkdir -p dist/quickterm
 ditto -c -k --sequesterRsrc --keepParent "$app" dist/quickterm/ghostty-quickterm-universal.zip
