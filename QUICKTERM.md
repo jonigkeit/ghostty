@@ -12,6 +12,9 @@ also serves as a Homebrew tap. The workflow creates
 `Casks/ghostty-quickterm.rb` with an immutable release URL and SHA-256 checksum.
 No separate tap repository or personal access token is required.
 
+Binary releases are currently disabled pending an explicitly provisioned
+self-hosted macOS runner. No cask is available until a release succeeds.
+
 Quit Ghostty and use another terminal for the switch:
 
 ```sh
@@ -46,14 +49,15 @@ brew install --cask ghostty
 
 ## Automation
 
-- **Release Quick Terminal** (`quickterm-release.yml`) builds pushes to
-  `feat/quickterm-with-tab`, or can be run manually on that branch. Cask-only
-  commits do not cause another build. The workflow checks out the exact commit
-  that triggered the push.
-- The build uses the Zig version in `build.zig.zon`, verified against Zig's
-  download manifest, and GitHub's `xcode-27` macOS runner. It compiles both
-  Apple Silicon and Intel, uses `ReleaseLocal`, verifies code signing and both
-  architectures, and runs a CLI smoke check before uploading.
+- **Release Quick Terminal** (`quickterm-release.yml`) is manual only, on
+  `feat/quickterm-with-tab`, and requires a runner with the labels `self-hosted`,
+  `macOS`, and `ghostty-build`. It never selects a GitHub-hosted macOS runner.
+  The workflow checks out the exact commit selected for the run.
+- The designated runner must already have the Zig version in `build.zig.zon`,
+  Xcode 27 with its license and Metal toolchain set up, Nushell, gettext,
+  Pandoc, and Python 3 on its PATH. The workflow installs no dependencies.
+  It compiles both Apple Silicon and Intel, uses `ReleaseLocal`, verifies code
+  signing and both architectures, and runs a CLI smoke check before uploading.
 - Each successful build produces an immutable `quickterm-YYYYMMDDHHMMSS`
   prerelease, a universal ZIP, `SHA256SUMS`, and an updated cask. Build jobs have
   read-only repository permissions; publication uses `contents: write`.
@@ -62,12 +66,11 @@ brew install --cask ghostty
   skips commits already integrated, and merges new commits with `--no-ff`.
   Only after both merges succeed does it push the integration branch.
 - Sync pushes use a write deploy key scoped to this fork. Unlike `GITHUB_TOKEN`,
-  this can integrate upstream changes to workflow files and triggers the normal
-  release push workflow. The cask update uses `GITHUB_TOKEN` and does not trigger
-  another build.
+  this can integrate upstream changes to workflow files. Syncing does not start
+  a build. The cask update uses `GITHUB_TOKEN`.
 - Conflicts, missing upstream refs, and concurrent pushes fail the run. Nothing
   is force-pushed, and no issue or PR is opened. Resolve a conflict locally on
-  the integration branch and push; that push starts a release. If an upstream
+  the integration branch and push. If an upstream
   branch is rewritten, review its history manually before continuing to merge.
 - If the branch changes during a build, publication stops to avoid downgrading
   the tap. Re-run **Release Quick Terminal** on the current branch. If a push
@@ -98,6 +101,15 @@ commits. The ordinary Actions token cannot merge upstream workflow-file changes.
 GitHub can delay scheduled jobs, and disables schedules in public repositories
 after 60 days without repository activity; re-enable the workflow if needed.
 
+### Enable releases on your own macOS runner
+
+The release workflow is disabled in this fork's Actions settings. Only after an
+explicitly provisioned Mac is registered with the `ghostty-build` label and all
+dependencies are available should you enable the workflow and dispatch it on
+`feat/quickterm-with-tab`. The publishing job runs on Linux after the Mac build
+succeeds. No runner is installed or registered on the local workstation by this
+setup. No hosted macOS build is allowed.
+
 ## Local checks and builds in Podman
 
 Do not install build tools on the host. With an existing Podman machine running,
@@ -123,8 +135,8 @@ podman image rm localhost/ghostty-quickterm-checks
 
 Podman on macOS runs Linux containers. These can compile the portable Zig core,
 but cannot run Xcode or build the native AppKit/SwiftUI macOS application.
-The macOS release workflow therefore requires a disposable GitHub macOS runner;
-it installs dependencies only on that runner. It produces
+The macOS release workflow therefore requires an explicitly provisioned
+self-hosted macOS runner with preinstalled tools. It produces
 `macos/build/ReleaseLocal/Ghostty.app` and
 `dist/quickterm/ghostty-quickterm-universal.zip` there. If all builds must use
 Podman, the native macOS release cannot be produced with this setup.

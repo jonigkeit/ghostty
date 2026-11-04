@@ -1,5 +1,4 @@
-# GitHub's official Xcode 27 preview runner is not yet known to actionlint 1.7.12.
-# https://github.com/actions/runner-images#available-images
+# Dedicated, explicitly provisioned macOS build runner.
 self-hosted-runner:
   labels:
-    - xcode-27
+    - ghostty-build

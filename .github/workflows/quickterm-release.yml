@@ -1,11 +1,6 @@
 name: Release Quick Terminal
 
 on:
-  push:
-    branches: [feat/quickterm-with-tab]
-    paths-ignore:
-      - "Casks/**"
-      - "QUICKTERM.md"
   workflow_dispatch:
 
 permissions:
@@ -18,8 +13,8 @@ concurrency:
 jobs:
   build:
     if: github.repository == 'jonigkeit/ghostty' && github.ref == 'refs/heads/feat/quickterm-with-tab'
-    # Match upstream's Xcode 27 toolchain on a disposable hosted Mac.
-    runs-on: xcode-27
+    # Explicitly provisioned Mac only. Never use a hosted macOS runner.
+    runs-on: [self-hosted, macOS, ghostty-build]
     timeout-minutes: 90
     outputs:
       sha: ${{ steps.version.outputs.sha }}
@@ -35,11 +30,16 @@ jobs:
         run: |
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "version=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_OUTPUT"
-      - name: Install build dependencies
+      - name: Check preinstalled build dependencies
         run: |
-          brew install gettext pandoc nushell
-          echo "$(brew --prefix gettext)/bin" >> "$GITHUB_PATH"
-          bash .github/scripts/quickterm/install-zig.sh "$RUNNER_TEMP/quickterm-zig"
+          for tool in zig nu xcodebuild msgfmt pandoc python3; do
+            command -v "$tool" || { echo "Missing preinstalled tool: $tool" >&2; exit 1; }
+          done
+          required_zig=$(sed -nE 's/^[[:space:]]*\.minimum_zig_version = "([^"]+)".*/\1/p' build.zig.zon)
+          if [[ $(zig version) != "$required_zig" ]]; then
+            echo "The runner requires Zig $required_zig; no tools will be installed by this workflow." >&2
+            exit 1
+          fi
       - name: Check synchronization behavior
         run: python3 .github/scripts/quickterm/test_sync.py
       - name: Build and verify universal app

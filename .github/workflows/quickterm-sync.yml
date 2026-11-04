@@ -43,4 +43,4 @@ jobs:
         id: sync
         run: bash .github/scripts/quickterm/sync.sh
 
-      # Deploy-key pushes trigger the release workflow's normal push event.
+      # Releases are dispatched manually on an explicitly provisioned Mac.
